@@ -1,0 +1,8 @@
+{
+  "extends": "../../vektor-platform/packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["src", "tests"]
+}

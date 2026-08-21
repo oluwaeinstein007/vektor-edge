@@ -1,0 +1,12 @@
+{
+  "_comment": "Per-component budgets straight from VEKTOR-PRD.md §11.4's edge software stack table. total_budget_mb is the '<10 GB' figure from the same section — kept as a separate ceiling because a build can pass every per-component check yet still blow the aggregate if a component the table doesn't itemize (OS, k8s, networking) grows.",
+  "components": [
+    { "name": "cv-inference", "library": "onnxruntime-node + YOLOv8n INT8 ONNX", "budget_mb": 1536 },
+    { "name": "local-llm", "library": "node-llama-cpp + Mistral 7B Q4_K_M", "budget_mb": 6144 },
+    { "name": "embeddings", "library": "@xenova/transformers (MiniLM ONNX)", "budget_mb": 256 },
+    { "name": "offline-db", "library": "better-sqlite3 + local PostGIS-lite queries", "budget_mb": 512 },
+    { "name": "map-tiles", "library": "PMTiles static server (TS)", "budget_mb": 100 },
+    { "name": "sync-queue", "library": "BullMQ + ioredis (local Redis)", "budget_mb": 256 }
+  ],
+  "total_budget_mb": 10240
+}

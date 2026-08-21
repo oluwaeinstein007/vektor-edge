@@ -1,0 +1,8 @@
+bundle/
+compose/models/
+*.mbtiles
+*.pmtiles
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store

@@ -1,0 +1,8 @@
+{
+  "cv-inference": 1420,
+  "local-llm": 5800,
+  "embeddings": 210,
+  "offline-db": 480,
+  "map-tiles": 85,
+  "sync-queue": 190
+}

@@ -1,0 +1,65 @@
+# Edge Docker Compose overlay — §9.2. A lighter-weight alternative to the
+# full k3s stack (bootstrap-k3s-edge.sh) for exercising the edge-profile
+# services on a dev laptop, or as the Tactical Server's (Intel NUC, §11.4)
+# own runtime if a given deployment doesn't warrant a full k3s control
+# plane on top of the Jetson's.
+#
+# Image tags are placeholders — vektor-platform's edge-profile services
+# (coa-svc w/ node-llama-cpp, cv-inference-svc w/ onnxruntime-node,
+# field-pwa) don't exist yet; each lands with its own roadmap task
+# (SVC-xxx/FE-xxx) and starts publishing a real `:edge-latest` tag then.
+# This file is here so that plumbing (network, volumes, ports, the memory
+# limits EDGE-007 cares about) is already right when that happens.
+name: vektor-edge
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256m # §11.4 sync-queue budget
+
+  cv-inference-svc:
+    image: ghcr.io/vektor/platform-cv-inference-svc:edge-latest
+    restart: unless-stopped
+    environment:
+      - VEKTOR_PROFILE=edge
+      - ONNX_MODEL_PATH=/models/yolov8n-int8.onnx
+    volumes:
+      - ./models:/models:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1536m # §11.4 cv-inference budget
+
+  coa-svc:
+    image: ghcr.io/vektor/platform-coa-svc:edge-latest
+    restart: unless-stopped
+    environment:
+      - VEKTOR_PROFILE=edge
+      - LLM_MODEL_PATH=/models/mistral-7b-q4_k_m.gguf
+    volumes:
+      - ./models:/models:ro
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 6144m # §11.4 local-llm budget
+
+  field-pwa:
+    image: ghcr.io/vektor/platform-field-pwa:edge-latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - coa-svc
+
+volumes:
+  redis-data:

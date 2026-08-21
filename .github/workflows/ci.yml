@@ -1,0 +1,55 @@
+# §9.8: "Every PR: Cross-compile ARM64 -> hardware-in-the-loop tests on a
+# physical Jetson runner (nightly, not per-PR)". The per-PR jobs below are
+# everything that doesn't need real Jetson hardware; hardware-in-the-loop
+# is scheduled separately — see tests/hardware-in-the-loop/README.md, which
+# is honest that no runner is wired up yet.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * *" # nightly hardware-in-the-loop, see tests/hardware-in-the-loop/README.md
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: scripts
+
+  memory-budget-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install
+      - run: pnpm lint
+      - run: pnpm test
+      # EDGE-007 in miniature: the checked-in example is what a healthy
+      # build looks like, so if this ever fails, either the example or the
+      # budget manifest drifted from §11.4 and needs reconciling by hand.
+      - run: node dist/src/check-memory-budget.js example-observed.json
+
+  compose-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p compose/models
+          docker compose -f compose/docker-compose.edge.yml config -q
+
+  hardware-in-the-loop:
+    if: github.event_name == 'schedule'
+    runs-on: [self-hosted, jetson-agx-orin]
+    steps:
+      - run: echo "TODO EDGE-002/EDGE-003 — needs the physical runner label above to exist first"

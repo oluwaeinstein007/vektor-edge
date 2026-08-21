@@ -1,0 +1,19 @@
+{
+  "name": "@vektor/edge-scripts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node/TS tooling for vektor-edge — EDGE-007's memory-budget CI gate. Shell scripts (flash-jetson.sh etc.) stay shell; this is the one piece that's genuinely program logic, so it's TS like the rest of the stack (§9.2, §10.2's TypeScript-first strategy).",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build && node --test dist/tests/*.test.js",
+    "check-budget": "node dist/src/check-memory-budget.js",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
