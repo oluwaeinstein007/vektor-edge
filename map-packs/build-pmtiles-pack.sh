@@ -7,8 +7,13 @@
 #
 # Requires: tippecanoe, pmtiles (go-pmtiles) on PATH. Neither is bundled
 # here — both are native binaries with their own OS packaging; install via
-# your platform's package manager (e.g. `brew install tippecanoe pmtiles`
-# or build from source) before running this.
+# your platform's package manager (e.g. `brew install tippecanoe pmtiles`)
+# before running this. Verified 2026-08-26 against a real fixture
+# (fixtures/area.geojson, also exercised by .github/workflows/ci.yml's
+# map-pack-build job): tippecanoe has no apt package or prebuilt release on
+# most Linux distros — build it from source (`libsqlite3-dev`/`zlib1g-dev` +
+# `make`, a few minutes); pmtiles (protomaps/go-pmtiles) does ship a static
+# Linux binary release, no build needed.
 set -euo pipefail
 
 AREA_GEOJSON="${1:?Usage: build-pmtiles-pack.sh <area.geojson> <output.pmtiles> [max-zoom]}"

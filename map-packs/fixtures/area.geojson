@@ -1,0 +1,8 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "properties": { "name": "outpost-1" }, "geometry": { "type": "Point", "coordinates": [-77.0365, 38.8977] } },
+    { "type": "Feature", "properties": { "name": "supply-route-a" }, "geometry": { "type": "LineString", "coordinates": [[-77.04, 38.90], [-77.03, 38.895], [-77.02, 38.89]] } },
+    { "type": "Feature", "properties": { "name": "no-strike-zone-1" }, "geometry": { "type": "Polygon", "coordinates": [[[-77.05, 38.91], [-77.03, 38.91], [-77.03, 38.90], [-77.05, 38.90], [-77.05, 38.91]]] } }
+  ]
+}

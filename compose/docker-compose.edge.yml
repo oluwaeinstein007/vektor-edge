@@ -4,12 +4,28 @@
 # own runtime if a given deployment doesn't warrant a full k3s control
 # plane on top of the Jetson's.
 #
-# Image tags are placeholders — vektor-platform's edge-profile services
-# (coa-svc w/ node-llama-cpp, cv-inference-svc w/ onnxruntime-node,
-# field-pwa) don't exist yet; each lands with its own roadmap task
-# (SVC-xxx/FE-xxx) and starts publishing a real `:edge-latest` tag then.
-# This file is here so that plumbing (network, volumes, ports, the memory
-# limits EDGE-007 cares about) is already right when that happens.
+# cv-inference-svc/coa-svc/edge-sync-svc now build from vektor-platform's
+# real Dockerfiles (EDGE-002/003/006) rather than a placeholder `image:`
+# tag — there's no CI/registry pipeline publishing a real `:edge-latest`
+# yet (that's INFRA-008 territory), so `build:` against a local checkout is
+# what actually works today. field-pwa still doesn't exist as an app in
+# vektor-platform (only apps/web, the HQ dashboard) — no FE-xxx roadmap
+# task has created it yet, so its entry stays a placeholder image, flagged
+# for whichever future phase adds that app.
+#
+# Env vars below match each service's real src/index.ts, not the earlier
+# scaffold's placeholder names (ONNX_MODEL_PATH/LLM_MODEL_PATH never
+# existed in the actual code — MODEL_PATH and VEKTOR_EDGE_MODEL_PATH do).
+#
+# Known architecture gap, not fixed here: coa-svc's persistence layer
+# (packages/db, Drizzle/Postgres) has no SQLite-compatible path, so even in
+# VEKTOR_COA_MODE=edge it still needs a real Postgres + Qdrant — §11.4's
+# edge software stack table only lists better-sqlite3, not Postgres/Qdrant.
+# The Tactical Server (Intel NUC, 64GB RAM/2TB NVMe, §11.4) has the headroom
+# to run lightweight single-node instances of both, which is what's wired
+# up below so this file actually works for local testing, but reconciling
+# coa-svc's DB layer with §11.4's stated edge stack is a real gap for a
+# future phase, not a Phase 6 roadmap item.
 name: vektor-edge
 
 services:
@@ -24,12 +40,39 @@ services:
         limits:
           memory: 256m # §11.4 sync-queue budget
 
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=vektor
+      - POSTGRES_DB=vektor
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512m # not in §11.4's table — see header comment
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+    deploy:
+      resources:
+        limits:
+          memory: 512m # not in §11.4's table — see header comment
+
   cv-inference-svc:
-    image: ghcr.io/vektor/platform-cv-inference-svc:edge-latest
+    build:
+      context: ../..
+      dockerfile: vektor-platform/services/cv-inference-svc/Dockerfile
     restart: unless-stopped
     environment:
       - VEKTOR_PROFILE=edge
-      - ONNX_MODEL_PATH=/models/yolov8n-int8.onnx
+      - MODEL_PATH=/models/yolov8n-int8.onnx
+      - KAFKA_BROKERS=${KAFKA_BROKERS:-host.docker.internal:9092}
+      - REQUIRE_GPU=${REQUIRE_GPU:-false}
     volumes:
       - ./models:/models:ro
     deploy:
@@ -38,19 +81,49 @@ services:
           memory: 1536m # §11.4 cv-inference budget
 
   coa-svc:
-    image: ghcr.io/vektor/platform-coa-svc:edge-latest
+    build:
+      context: ../..
+      dockerfile: vektor-platform/services/coa-svc/Dockerfile
     restart: unless-stopped
     environment:
       - VEKTOR_PROFILE=edge
-      - LLM_MODEL_PATH=/models/mistral-7b-q4_k_m.gguf
+      - VEKTOR_COA_MODE=edge
+      - VEKTOR_EDGE_MODEL_PATH=/models/mistral-7b-q4_k_m.gguf
+      - DATABASE_URL=postgres://postgres:vektor@postgres:5432/vektor
+      - QDRANT_URL=http://qdrant:6333
+      - AUDIT_SVC_URL=${AUDIT_SVC_URL:-http://host.docker.internal:3009}
+      - FUSION_SVC_URL=${FUSION_SVC_URL:-http://host.docker.internal:3007}
     volumes:
       - ./models:/models:ro
+    depends_on:
+      - redis
+      - postgres
+      - qdrant
+    deploy:
+      resources:
+        limits:
+          memory: 6144m # §11.4 local-llm budget
+
+  edge-sync-svc:
+    build:
+      context: ../..
+      dockerfile: vektor-platform/services/edge-sync-svc/Dockerfile
+    restart: unless-stopped
+    environment:
+      - VEKTOR_PROFILE=edge
+      - VEKTOR_EDGE_NODE_ID=${VEKTOR_EDGE_NODE_ID:?set a unique id per physical edge node}
+      - KAFKA_BROKERS=${KAFKA_BROKERS:-host.docker.internal:9092}
+      - REDIS_URL=redis://redis:6379
+      - ALERT_SVC_URL=${ALERT_SVC_URL:-http://host.docker.internal:3011}
+      - EDGE_SYNC_DB_PATH=/data/edge-sync.sqlite3
+    volumes:
+      - edge-sync-data:/data
     depends_on:
       - redis
     deploy:
       resources:
         limits:
-          memory: 6144m # §11.4 local-llm budget
+          memory: 512m # §11.4's "Offline DB" (256m) + a margin for the Kafka client itself
 
   field-pwa:
     image: ghcr.io/vektor/platform-field-pwa:edge-latest
@@ -63,3 +136,6 @@ services:
 
 volumes:
   redis-data:
+  postgres-data:
+  qdrant-data:
+  edge-sync-data:

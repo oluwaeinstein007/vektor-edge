@@ -15,11 +15,14 @@ on:
 jobs:
   shellcheck:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scandir: [scripts, map-packs]
     steps:
       - uses: actions/checkout@v4
       - uses: ludeeus/action-shellcheck@master
         with:
-          scandir: scripts
+          scandir: ${{ matrix.scandir }}
 
   memory-budget-tests:
     runs-on: ubuntu-latest
@@ -40,8 +43,35 @@ jobs:
       # budget manifest drifted from §11.4 and needs reconciling by hand.
       - run: node dist/src/check-memory-budget.js example-observed.json
 
+  map-pack-build:
+    # EDGE-004. Neither tippecanoe nor pmtiles ships an apt package on
+    # ubuntu-latest, and tippecanoe has no prebuilt release binary at all —
+    # build it from source (same recipe verified locally, see
+    # vektor-build-conventions) and fetch pmtiles' real static Go binary
+    # release, then actually run the script against a real checked-in
+    # GeoJSON fixture rather than just shellchecking it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build tippecanoe from source
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev
+          git clone --depth 1 https://github.com/felt/tippecanoe.git /tmp/tippecanoe
+          make -C /tmp/tippecanoe -j"$(nproc)"
+          sudo cp /tmp/tippecanoe/tippecanoe /tmp/tippecanoe/tile-join /usr/local/bin/
+      - name: Install pmtiles
+        run: |
+          curl -sSL -o /tmp/pmtiles.tar.gz https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz
+          tar xzf /tmp/pmtiles.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/pmtiles /usr/local/bin/pmtiles
+      - run: ./map-packs/build-pmtiles-pack.sh map-packs/fixtures/area.geojson /tmp/area.pmtiles
+      - run: pmtiles show /tmp/area.pmtiles
+
   compose-validate:
     runs-on: ubuntu-latest
+    env:
+      VEKTOR_EDGE_NODE_ID: ci-validate # required var, real value only matters at deploy time
     steps:
       - uses: actions/checkout@v4
       - run: |

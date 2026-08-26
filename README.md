@@ -4,7 +4,7 @@ k3s edge bootstrap, Jetson flashing/provisioning, edge Docker Compose overlays, 
 
 ## What's here vs. what lands later
 
-This repo is the edge node's *bootstrap and ops tooling* — get a bare Jetson to a running cluster, keep it offline-capable, generate the map data it needs. The actual application code that runs on that cluster (edge-profile `coa-svc`, `cv-inference-svc`, `field-pwa`, IndexedDB sync — EDGE-005/EDGE-006) is built and published from `vektor-platform`; this repo only consumes those images (`compose/docker-compose.edge.yml`'s placeholder tags become real once each service's own roadmap task lands).
+This repo is the edge node's *bootstrap and ops tooling* — get a bare Jetson to a running cluster, keep it offline-capable, generate the map data it needs. The actual application code that runs on that cluster is built and published from `vektor-platform`; this repo only consumes those images. As of Phase 6 (EDGE-002/003/006), `coa-svc`, `cv-inference-svc`, and `edge-sync-svc` all have real Dockerfiles there (`services/*/Dockerfile`, ARM64 cross-compiled for the Jetson) — `compose/docker-compose.edge.yml` builds them locally rather than pulling a placeholder tag, since no CI/registry pipeline publishes a real `:edge-latest` yet. `field-pwa` still doesn't exist as an app (no FE-xxx roadmap task has created it), so its entry stays a placeholder image — the whole compose file can't actually come up until that lands, but every other service in it can be exercised standalone.
 
 ```
 scripts/
@@ -16,6 +16,7 @@ scripts/
   tests/                       node --test suite for the above
 compose/docker-compose.edge.yml  Lighter-weight alternative to full k3s, for dev-laptop testing
 map-packs/build-pmtiles-pack.sh  EDGE-004 — GeoJSON -> tippecanoe -> pmtiles, one offline archive
+map-packs/fixtures/area.geojson  Real fixture .github/workflows/ci.yml's map-pack-build job builds against
 tests/hardware-in-the-loop/      Documented, not yet runnable — no physical Jetson CI runner exists yet
 ```
 
@@ -35,4 +36,13 @@ sudo ./scripts/bootstrap-k3s-edge.sh ./bundle
 # exercise the EDGE-007 gate:
 cd scripts && pnpm install && pnpm test
 pnpm check-budget example-observed.json
+
+# build the map pack fixture (needs tippecanoe + pmtiles on PATH — see
+# map-packs/build-pmtiles-pack.sh's header comment for how to get both):
+./map-packs/build-pmtiles-pack.sh map-packs/fixtures/area.geojson /tmp/area.pmtiles
+
+# dev-laptop compose overlay (needs vektor-proto checked out as a sibling of
+# vektor-platform — see services/*/Dockerfile's header comments for why):
+export VEKTOR_EDGE_NODE_ID=dev-laptop-1
+docker compose -f compose/docker-compose.edge.yml build
 ```
