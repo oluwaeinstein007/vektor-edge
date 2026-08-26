@@ -4,14 +4,16 @@
 # own runtime if a given deployment doesn't warrant a full k3s control
 # plane on top of the Jetson's.
 #
-# cv-inference-svc/coa-svc/edge-sync-svc now build from vektor-platform's
+# cv-inference-svc/coa-svc/edge-sync-svc now build from vektor-backend's
 # real Dockerfiles (EDGE-002/003/006) rather than a placeholder `image:`
 # tag — there's no CI/registry pipeline publishing a real `:edge-latest`
 # yet (that's INFRA-008 territory), so `build:` against a local checkout is
 # what actually works today. field-pwa still doesn't exist as an app in
-# vektor-platform (only apps/web, the HQ dashboard) — no FE-xxx roadmap
+# vektor-web (only apps/web, the HQ dashboard) — no FE-xxx roadmap
 # task has created it yet, so its entry stays a placeholder image, flagged
-# for whichever future phase adds that app.
+# for whichever future phase adds that app. vektor-platform was split into
+# vektor-backend (services/packages) and vektor-web (apps/web, field-pwa)
+# — see vektor-docs' repo-map for the current 7-repo layout.
 #
 # Env vars below match each service's real src/index.ts, not the earlier
 # scaffold's placeholder names (ONNX_MODEL_PATH/LLM_MODEL_PATH never
@@ -66,7 +68,7 @@ services:
   cv-inference-svc:
     build:
       context: ../..
-      dockerfile: vektor-platform/services/cv-inference-svc/Dockerfile
+      dockerfile: vektor-backend/services/cv-inference-svc/Dockerfile
     restart: unless-stopped
     environment:
       - VEKTOR_PROFILE=edge
@@ -83,7 +85,7 @@ services:
   coa-svc:
     build:
       context: ../..
-      dockerfile: vektor-platform/services/coa-svc/Dockerfile
+      dockerfile: vektor-backend/services/coa-svc/Dockerfile
     restart: unless-stopped
     environment:
       - VEKTOR_PROFILE=edge
@@ -107,7 +109,7 @@ services:
   edge-sync-svc:
     build:
       context: ../..
-      dockerfile: vektor-platform/services/edge-sync-svc/Dockerfile
+      dockerfile: vektor-backend/services/edge-sync-svc/Dockerfile
     restart: unless-stopped
     environment:
       - VEKTOR_PROFILE=edge

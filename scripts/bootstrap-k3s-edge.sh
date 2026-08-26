@@ -37,5 +37,5 @@ until k3s kubectl get node -o jsonpath='{.items[0].status.conditions[?(@.type=="
   sleep 2
 done
 
-echo "==> k3s edge node ready. Deploy vektor-platform's edge-profile Helm"
+echo "==> k3s edge node ready. Deploy vektor-backend's edge-profile Helm"
 echo "    releases from the same bundle next — see README.md."
