@@ -116,7 +116,7 @@ services:
       - VEKTOR_EDGE_NODE_ID=${VEKTOR_EDGE_NODE_ID:?set a unique id per physical edge node}
       - KAFKA_BROKERS=${KAFKA_BROKERS:-host.docker.internal:9092}
       - REDIS_URL=redis://redis:6379
-      - ALERT_SVC_URL=${ALERT_SVC_URL:-http://host.docker.internal:3011}
+      - ALERT_SVC_URL=${ALERT_SVC_URL:-http://host.docker.internal:3013}
       - EDGE_SYNC_DB_PATH=/data/edge-sync.sqlite3
     volumes:
       - edge-sync-data:/data
